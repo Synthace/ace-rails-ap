@@ -12,10 +12,10 @@ var YamlHighlightRules = function() {
                 regex : "#.*$"
             }, {
                 token : "list.markup",
-                regex : /^(?:-{3}|\.{3})\s*(?=#|$)/     
+                regex : /^(?:-{3}|\.{3})\s*(?=#|$)/
             },  {
                 token : "list.markup",
-                regex : /^\s*[\-?](?:$|\s)/     
+                regex : /^\s*[\-?](?:$|\s)/
             }, {
                 token: "constant",
                 regex: "!![\\w//]+"
@@ -40,7 +40,23 @@ var YamlHighlightRules = function() {
             }, {
                 token : "string", // multi line string start
                 regex : '[|>][-+\\d\\s]*$',
-                next : "qqstring"
+                onMatch: function(val, state, stack, line) {
+                    var indent = /^\s*(?:[-?]\s)?/.exec(line)[0];
+                    if (stack.length < 1) {
+                        stack.push(this.next);
+                    } else {
+                        stack[0] = "mlString";
+                    }
+
+                    if (stack.length < 2) {
+                        stack.push(indent.length);
+                    }
+                    else {
+                        stack[1] = indent.length;
+                    }
+                    return this.token;
+                },
+                next : "mlString"
             }, {
                 token : "string", // single quoted string
                 regex : "['](?:(?:\\\\.)|(?:[^'\\\\]))*?[']"
@@ -61,11 +77,26 @@ var YamlHighlightRules = function() {
                 regex : "[\\])}]"
             }
         ],
-        "qqstring" : [
+        "mlString" : [
             {
-                token : "string",
-                regex : '(?=(?:(?:\\\\.)|(?:[^:]))*?:)',
-                next : "start"
+                token : "indent",
+                regex : /^\s*$/
+            }, {
+                token : "indent",
+                regex : /^\s*/,
+                onMatch: function(val, state, stack) {
+                    var curIndent = stack[1];
+
+                    if (curIndent >= val.length) {
+                        this.next = "start";
+                        stack.splice(0);
+                    }
+                    else {
+                        this.next = "mlString";
+                    }
+                    return this.token;
+                },
+                next : "mlString"
             }, {
                 token : "string",
                 regex : '.+'
